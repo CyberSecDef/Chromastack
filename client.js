@@ -1,12 +1,26 @@
 // client.js - Client-side game logic and UI
+'use strict';
 
 let ws = null;
 let gameState = null;
 let selectedColumn = null;
 let timerInterval = null;
+let sessionId = null;
+let countdownInterval = null;
+
+// Get or create session ID
+function getSessionId() {
+  let id = localStorage.getItem('chromastack_session');
+  if (!id) {
+    id = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem('chromastack_session', id);
+  }
+  return id;
+}
 
 // Initialize WebSocket connection
 function initWebSocket() {
+  sessionId = getSessionId();
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}`;
   
@@ -14,6 +28,8 @@ function initWebSocket() {
   
   ws.onopen = () => {
     console.log('Connected to server');
+    // Send session ID to server to restore or create game
+    sendMessage('join', { sessionId: sessionId });
   };
   
   ws.onmessage = (event) => {
@@ -61,9 +77,8 @@ function renderGame() {
   document.getElementById('moves').textContent = gameState.moves;
   document.getElementById('timer').textContent = formatTime(gameState.elapsedTime);
   
-  // Calculate maximum stack height
-  const maxHeight = Math.max(...gameState.columns.map(col => col.length));
-  const stackHeight = gameState.columns.length > 0 ? gameState.columns[0].length : 4;
+  // Use the fixed stack height from game state
+  const stackHeight = gameState.stackHeight || 4;
   
   // Render columns
   gameState.columns.forEach((column, columnIndex) => {
@@ -102,20 +117,18 @@ function renderGame() {
 function handleColumnClick(columnIndex) {
   if (gameState.isComplete) return;
   
-  // If no column is selected, select this column (if it has balls)
+  // If no column is selected, select this column as destination
   if (selectedColumn === null) {
-    if (gameState.columns[columnIndex].length > 0) {
-      selectedColumn = columnIndex;
-      sendMessage('selectColumn', { column: columnIndex });
-    }
+    selectedColumn = columnIndex;
+    sendMessage('selectColumn', { column: columnIndex });
   } else {
     // If same column clicked, deselect
     if (selectedColumn === columnIndex) {
       selectedColumn = null;
       sendMessage('selectColumn', { column: null });
     } else {
-      // Try to move ball from selected column to clicked column
-      sendMessage('move', { fromColumn: selectedColumn, toColumn: columnIndex });
+      // Move ball from clicked column (source) to selected column (destination)
+      sendMessage('move', { fromColumn: columnIndex, toColumn: selectedColumn });
       selectedColumn = null;
     }
   }
@@ -130,13 +143,69 @@ function formatTime(seconds) {
 
 // Show level complete message
 function showLevelComplete(data) {
-  const message = `Level ${data.level} Complete!\nMoves: ${data.moves}\nTime: ${formatTime(data.time)}`;
-  alert(message);
+  const modal = document.getElementById('levelCompleteModal');
+  const confettiContainer = document.getElementById('confettiContainer');
   
-  // Automatically go to next level after a short delay
-  setTimeout(() => {
-    sendMessage('nextLevel', {});
+  // Set modal content
+  document.getElementById('modalLevel').textContent = data.level;
+  document.getElementById('modalMoves').textContent = data.moves;
+  document.getElementById('modalTime').textContent = formatTime(data.time);
+  
+  // Show modal
+  modal.classList.add('active');
+  
+  // Create confetti
+  createConfetti(confettiContainer);
+  
+  // Clear any existing countdown
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+  }
+  
+  // Countdown timer
+  let countdown = 10;
+  const countdownEl = document.getElementById('modalCountdown');
+  countdownEl.textContent = countdown;
+  
+  countdownInterval = setInterval(() => {
+    countdown--;
+    countdownEl.textContent = countdown;
+    if (countdown <= 0) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+    }
   }, 1000);
+  
+  // Go to next level after 10 seconds
+  setTimeout(() => {
+    modal.classList.remove('active');
+    confettiContainer.innerHTML = '';
+    sendMessage('nextLevel', {});
+  }, 10000);
+}
+
+// Create confetti particles
+function createConfetti(container) {
+  const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#ff69b4', '#ffd700'];
+  
+  for (let i = 0; i < 150; i++) {
+    setTimeout(() => {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.left = Math.random() * 100 + '%';
+      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.width = (Math.random() * 10 + 5) + 'px';
+      confetti.style.height = (Math.random() * 10 + 5) + 'px';
+      confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+      confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+      container.appendChild(confetti);
+      
+      // Remove confetti after animation
+      setTimeout(() => {
+        confetti.remove();
+      }, 5000);
+    }, Math.random() * 3000);
+  }
 }
 
 // Restart current level

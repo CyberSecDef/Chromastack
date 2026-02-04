@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws: wss:;">
   <title>Chromastack - Ball Sorting Puzzle</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -43,9 +44,23 @@
       <ul>
         <li>Click a column to select it</li>
         <li>Click another column to move the top ball</li>
-        <li>You can only move a ball to an empty column or a column with the same color on top</li>
+        <li>You can only move a ball to a column with free space</li>
         <li>Goal: Sort all balls so each column contains only one color</li>
       </ul>
+    </div>
+  </div>
+
+  <!-- Level Complete Modal -->
+  <div id="levelCompleteModal" class="modal-overlay">
+    <div class="confetti-container" id="confettiContainer"></div>
+    <div class="modal-content">
+      <h2>🎉 Level Complete! 🎉</h2>
+      <div class="modal-stats">
+        <p>Level: <span id="modalLevel">1</span></p>
+        <p>Moves: <span id="modalMoves">0</span></p>
+        <p>Time: <span id="modalTime">00:00</span></p>
+      </div>
+      <p class="modal-next">Next level starting in <span id="modalCountdown">10</span> seconds...</p>
     </div>
   </div>
 

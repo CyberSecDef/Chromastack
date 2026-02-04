@@ -1,4 +1,5 @@
 // shared.js - Shared game logic for both client and server
+'use strict';
 
 class GameState {
   constructor(level = 1) {
@@ -9,14 +10,15 @@ class GameState {
     this.startTime = Date.now();
     this.elapsedTime = 0;
     this.isComplete = false;
+    this.stackHeight = 4;
     this.generateLevel(level);
   }
 
   // Generate a level based on difficulty
   generateLevel(level) {
-    // Level determines grid size: level 1-2 = 4x4, 3-4 = 5x5, etc.
-    const gridSize = Math.min(Math.floor((level + 1) / 2) + 3, 10);
-    const stackHeight = gridSize;
+    // Level determines grid size: level 1 = 4x4, level 2 = 5x5, etc.
+    const gridSize = Math.min(level + 3, 10);
+    this.stackHeight = gridSize;
     const numColors = gridSize - 1; // One column is empty
     
     this.columns = [];
@@ -26,7 +28,7 @@ class GameState {
     const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'cyan', 'lime', 'magenta'];
     
     for (let i = 0; i < numColors; i++) {
-      for (let j = 0; j < stackHeight; j++) {
+      for (let j = 0; j < this.stackHeight; j++) {
         balls.push(colors[i]);
       }
     }
@@ -39,7 +41,7 @@ class GameState {
     
     // Distribute balls into columns
     for (let i = 0; i < numColors; i++) {
-      this.columns.push(balls.slice(i * stackHeight, (i + 1) * stackHeight));
+      this.columns.push(balls.slice(i * this.stackHeight, (i + 1) * this.stackHeight));
     }
     
     // Add one empty column
@@ -67,13 +69,10 @@ class GameState {
     if (toStack.length === 0) return true;
     
     // Can't move to full column
-    if (toStack.length >= this.columns[0].length) return false;
+    if (toStack.length >= this.stackHeight) return false;
     
-    // Can only move to column with same color on top
-    const fromBall = fromStack[fromStack.length - 1];
-    const toBall = toStack[toStack.length - 1];
-    
-    return fromBall === toBall;
+    // Allow moving any ball to any non-full column
+    return true;
   }
 
   // Move a ball from one column to another
@@ -94,8 +93,20 @@ class GameState {
 
   // Check if the game is complete
   checkComplete() {
+    let hasEmptyColumn = false;
+    
     for (const column of this.columns) {
-      if (column.length === 0) continue; // Empty column is OK
+      // Track if we have at least one empty column
+      if (column.length === 0) {
+        hasEmptyColumn = true;
+        continue;
+      }
+      
+      // Non-empty columns must be completely full
+      if (column.length !== this.stackHeight) {
+        this.isComplete = false;
+        return false;
+      }
       
       // Check if all balls in column are same color
       const color = column[0];
@@ -105,6 +116,12 @@ class GameState {
           return false;
         }
       }
+    }
+    
+    // Must have at least one empty column
+    if (!hasEmptyColumn) {
+      this.isComplete = false;
+      return false;
     }
     
     this.isComplete = true;
@@ -124,7 +141,8 @@ class GameState {
       columns: this.columns,
       selectedColumn: this.selectedColumn,
       elapsedTime: this.getElapsedTime(),
-      isComplete: this.isComplete
+      isComplete: this.isComplete,
+      stackHeight: this.stackHeight
     };
   }
 
@@ -136,6 +154,7 @@ class GameState {
     game.columns = data.columns;
     game.selectedColumn = data.selectedColumn;
     game.isComplete = data.isComplete;
+    game.stackHeight = data.stackHeight;
     game.startTime = Date.now() - (data.elapsedTime * 1000);
     return game;
   }
