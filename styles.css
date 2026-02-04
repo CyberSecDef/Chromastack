@@ -1,0 +1,299 @@
+/* styles.css - Chromastack styles with dark/light theme */
+
+/* CSS Variables for theming */
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --text-primary: #ffffff;
+  --text-secondary: #b4b4b4;
+  --border-color: #3a3a5a;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --btn-bg: #0f3460;
+  --btn-hover: #16213e;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f5f5f5;
+  --bg-secondary: #ffffff;
+  --text-primary: #1a1a2e;
+  --text-secondary: #666666;
+  --border-color: #d0d0d0;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --btn-bg: #e0e0e0;
+  --btn-hover: #d0d0d0;
+}
+
+/* Global Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Sticky Status Bar */
+.status-bar {
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--border-color);
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  z-index: 100;
+  box-shadow: 0 2px 10px var(--shadow);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.status-value {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text-primary);
+  min-width: 50px;
+}
+
+.status-controls {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.btn {
+  background: var(--btn-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  background: var(--btn-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px var(--shadow);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+/* Game Container */
+.game-container {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+.game-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.game-header h1 {
+  font-size: 48px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 10px;
+}
+
+.game-description {
+  font-size: 18px;
+  color: var(--text-secondary);
+}
+
+/* Game Board */
+.game-board {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 15px;
+  padding: 30px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px var(--shadow);
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+/* Column */
+.column {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 5px;
+  padding: 10px;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  min-width: 60px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.column:hover {
+  border-color: #667eea;
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px var(--shadow);
+}
+
+.column.selected {
+  border-color: #ffd700;
+  border-width: 3px;
+  background: rgba(255, 215, 0, 0.1);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+/* Ball Slot */
+.ball-slot {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ball */
+.ball {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  box-shadow: 
+    inset -5px -5px 10px rgba(0, 0, 0, 0.3),
+    inset 5px 5px 10px rgba(255, 255, 255, 0.3),
+    0 4px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+  position: relative;
+}
+
+.ball::before {
+  content: '';
+  position: absolute;
+  top: 15%;
+  left: 20%;
+  width: 15px;
+  height: 15px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  filter: blur(3px);
+}
+
+.ball:hover {
+  transform: scale(1.1);
+}
+
+/* Ball Colors */
+.ball.red { background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%); }
+.ball.blue { background: linear-gradient(135deg, #4dabf7 0%, #1971c2 100%); }
+.ball.green { background: linear-gradient(135deg, #51cf66 0%, #2f9e44 100%); }
+.ball.yellow { background: linear-gradient(135deg, #ffd43b 0%, #fab005 100%); }
+.ball.purple { background: linear-gradient(135deg, #b197fc 0%, #7950f2 100%); }
+.ball.orange { background: linear-gradient(135deg, #ff922b 0%, #e8590c 100%); }
+.ball.pink { background: linear-gradient(135deg, #ff6ec7 0%, #d6336c 100%); }
+.ball.cyan { background: linear-gradient(135deg, #3bc9db 0%, #0c8599 100%); }
+.ball.lime { background: linear-gradient(135deg, #a9e34b 0%, #73b723 100%); }
+.ball.magenta { background: linear-gradient(135deg, #e64980 0%, #c2255c 100%); }
+
+/* Game Instructions */
+.game-instructions {
+  background: var(--bg-secondary);
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px var(--shadow);
+}
+
+.game-instructions h3 {
+  font-size: 24px;
+  margin-bottom: 15px;
+  color: var(--text-primary);
+}
+
+.game-instructions ul {
+  list-style-position: inside;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  font-size: 16px;
+}
+
+.game-instructions li {
+  margin-bottom: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .status-bar {
+    padding: 10px 15px;
+  }
+  
+  .status-value {
+    font-size: 16px;
+  }
+  
+  .game-header h1 {
+    font-size: 36px;
+  }
+  
+  .game-board {
+    padding: 20px;
+    gap: 10px;
+  }
+  
+  .column {
+    min-width: 50px;
+  }
+  
+  .ball-slot {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .ball {
+    width: 35px;
+    height: 35px;
+  }
+}
+
+@media (max-width: 480px) {
+  .status-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .status-controls {
+    margin-left: 0;
+    justify-content: center;
+  }
+  
+  .game-header h1 {
+    font-size: 28px;
+  }
+  
+  .game-description {
+    font-size: 14px;
+  }
+}

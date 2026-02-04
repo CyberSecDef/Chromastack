@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chromastack - Ball Sorting Puzzle</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="dark">
+  <!-- Sticky Status Bar -->
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-label">Level:</span>
+      <span class="status-value" id="level">1</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Moves:</span>
+      <span class="status-value" id="moves">0</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Time:</span>
+      <span class="status-value" id="timer">00:00</span>
+    </div>
+    <div class="status-controls">
+      <button id="restartBtn" class="btn">🔄 Restart</button>
+      <button id="themeToggle" class="btn">🌓 Theme</button>
+    </div>
+  </div>
+
+  <!-- Game Container -->
+  <div class="game-container">
+    <div class="game-header">
+      <h1>Chromastack</h1>
+      <p class="game-description">Sort all balls into single-color columns!</p>
+    </div>
+    
+    <div id="gameBoard" class="game-board">
+      <!-- Columns will be rendered here by JavaScript -->
+    </div>
+    
+    <div class="game-instructions">
+      <h3>How to Play:</h3>
+      <ul>
+        <li>Click a column to select it</li>
+        <li>Click another column to move the top ball</li>
+        <li>You can only move a ball to an empty column or a column with the same color on top</li>
+        <li>Goal: Sort all balls so each column contains only one color</li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="client.js"></script>
+</body>
+</html>
