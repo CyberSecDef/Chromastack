@@ -1,6 +1,6 @@
 # Chromastack
 
-A real-time multiplayer ball sorting puzzle game built with Node.js, WebSockets, and vanilla JavaScript.
+A real-time ball sorting puzzle game built with Node.js, WebSockets, and vanilla JavaScript.
 
 ![Chromastack Game](https://github.com/user-attachments/assets/755782e3-75e6-4c65-bc7a-a6ed4879639c)
 
