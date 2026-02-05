@@ -8,6 +8,10 @@ let timerInterval = null;
 let sessionId = null;
 let countdownInterval = null;
 
+// Touch drag state
+let touchDragState = null;
+let touchDragClone = null;
+
 // Get or create session ID
 function getSessionId() {
   let id = localStorage.getItem('chromastack_session');
@@ -138,6 +142,8 @@ function renderGame() {
         if (i === column.length - 1) {
           ball.draggable = true;
           ball.classList.add('draggable');
+          
+          // Desktop drag events
           ball.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('text/plain', columnIndex.toString());
             ball.classList.add('dragging');
@@ -149,6 +155,73 @@ function renderGame() {
             // Remove drag-over from all columns
             document.querySelectorAll('.column').forEach(col => col.classList.remove('drag-over'));
           });
+          
+          // Touch events for mobile
+          ball.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchDragState = {
+              fromColumn: columnIndex,
+              startX: touch.clientX,
+              startY: touch.clientY
+            };
+            
+            // Create a clone to follow the finger
+            touchDragClone = ball.cloneNode(true);
+            touchDragClone.classList.add('touch-dragging');
+            touchDragClone.style.left = touch.clientX + 'px';
+            touchDragClone.style.top = touch.clientY + 'px';
+            document.body.appendChild(touchDragClone);
+            
+            ball.classList.add('drag-hidden');
+          }, { passive: false });
+          
+          ball.addEventListener('touchmove', (e) => {
+            if (!touchDragState || !touchDragClone) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            
+            // Move the clone
+            touchDragClone.style.left = touch.clientX + 'px';
+            touchDragClone.style.top = touch.clientY + 'px';
+            
+            // Highlight column under finger
+            const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+            document.querySelectorAll('.column').forEach(col => col.classList.remove('drag-over'));
+            if (elementUnder) {
+              const column = elementUnder.closest('.column');
+              if (column) {
+                column.classList.add('drag-over');
+              }
+            }
+          }, { passive: false });
+          
+          ball.addEventListener('touchend', (e) => {
+            if (!touchDragState) return;
+            
+            // Find column under finger
+            const touch = e.changedTouches[0];
+            const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            if (elementUnder) {
+              const column = elementUnder.closest('.column');
+              if (column) {
+                const toColumn = parseInt(column.dataset.column, 10);
+                if (!isNaN(toColumn)) {
+                  sendMessage('move', { fromColumn: touchDragState.fromColumn, toColumn: toColumn });
+                }
+              }
+            }
+            
+            // Cleanup
+            if (touchDragClone) {
+              touchDragClone.remove();
+              touchDragClone = null;
+            }
+            document.querySelectorAll('.column').forEach(col => col.classList.remove('drag-over'));
+            document.querySelectorAll('.ball').forEach(b => b.classList.remove('drag-hidden'));
+            touchDragState = null;
+          }, { passive: false });
         }
         
         ballDiv.appendChild(ball);

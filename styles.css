@@ -218,6 +218,15 @@ body {
   cursor: grabbing;
 }
 
+.ball.touch-dragging {
+  position: fixed;
+  z-index: 2000;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(1.2);
+  opacity: 0.9;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
 .ball.dragging {
   opacity: 0.8;
 }
