@@ -25,7 +25,7 @@ class GameState {
     
     // Create balls array
     const balls = [];
-    const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'cyan', 'lime', 'magenta'];
+    const colors = ['apple', 'blueberry', 'broccoli', 'star', 'grape', 'orange', 'cherry', 'diamond', 'lime', 'heart'];
     
     for (let i = 0; i < numColors; i++) {
       for (let j = 0; j < this.stackHeight; j++) {

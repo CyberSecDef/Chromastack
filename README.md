@@ -16,12 +16,12 @@ A real-time ball sorting puzzle game built with Node.js, WebSockets, and vanilla
 
 ## Game Rules
 
-1. Click a column to select it (must contain balls)
+1. Click a column to select it (must contain tokens)
 2. Click another column to move the top ball from the selected column
-3. Balls can only be moved to:
+3. Tokens can only be moved to:
    - Empty columns
    - Columns where the top ball is the same color
-4. Goal: Sort all balls so each column contains only one color
+4. Goal: Sort all tokens so each column contains only one color
 5. Complete the level to advance to the next challenge!
 
 ## Installation

@@ -80,6 +80,20 @@ function renderGame() {
   // Use the fixed stack height from game state
   const stackHeight = gameState.stackHeight || 4;
   
+  // Emoji mapping for balls
+  const emojiMap = {
+    'apple': '🍎',
+    'blueberry': '🫐',
+    'broccoli': '🥦',
+    'star': '⭐',
+    'grape': '🍇',
+    'orange': '🍊',
+    'cherry': '🍒',
+    'diamond': '💎',
+    'lime': '🍈',
+    'heart': '❤️'
+  };
+  
   // Render columns
   gameState.columns.forEach((column, columnIndex) => {
     const columnDiv = document.createElement('div');
@@ -97,9 +111,10 @@ function renderGame() {
       ballDiv.className = 'ball-slot';
       
       if (i < column.length) {
-        const ballColor = column[i];
+        const ballType = column[i];
         const ball = document.createElement('div');
-        ball.className = `ball ${ballColor}`;
+        ball.className = 'ball';
+        ball.textContent = emojiMap[ballType] || '⚪';
         ballDiv.appendChild(ball);
       }
       
