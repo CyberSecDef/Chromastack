@@ -172,6 +172,14 @@ body {
   box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
 }
 
+.column.drag-over {
+  border-color: #51cf66;
+  border-width: 3px;
+  background: rgba(81, 207, 102, 0.15);
+  box-shadow: 0 0 20px rgba(81, 207, 102, 0.4);
+  transform: translateY(-5px);
+}
+
 /* Ball Slot */
 .ball-slot {
   width: clamp(25px, 6vw, 50px);
@@ -200,6 +208,22 @@ body {
 
 .ball:hover {
   transform: scale(1.1);
+}
+
+.ball.draggable {
+  cursor: grab;
+}
+
+.ball.draggable:active {
+  cursor: grabbing;
+}
+
+.ball.dragging {
+  opacity: 0.8;
+}
+
+.ball.drag-hidden {
+  opacity: 0.3;
 }
 
 /* Game Instructions */

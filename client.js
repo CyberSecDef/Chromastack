@@ -105,6 +105,24 @@ function renderGame() {
       columnDiv.classList.add('selected');
     }
     
+    // Add drop zone handlers
+    columnDiv.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      columnDiv.classList.add('drag-over');
+    });
+    columnDiv.addEventListener('dragleave', () => {
+      columnDiv.classList.remove('drag-over');
+    });
+    columnDiv.addEventListener('drop', (e) => {
+      e.preventDefault();
+      columnDiv.classList.remove('drag-over');
+      const fromColumn = parseInt(e.dataTransfer.getData('text/plain'), 10);
+      if (!isNaN(fromColumn)) {
+        // Attempt move - server will validate
+        sendMessage('move', { fromColumn: fromColumn, toColumn: columnIndex });
+      }
+    });
+    
     // Render balls in reverse order (bottom to top)
     for (let i = 0; i < stackHeight; i++) {
       const ballDiv = document.createElement('div');
@@ -115,6 +133,24 @@ function renderGame() {
         const ball = document.createElement('div');
         ball.className = 'ball';
         ball.textContent = emojiMap[ballType] || '⚪';
+        
+        // Make only the top ball draggable
+        if (i === column.length - 1) {
+          ball.draggable = true;
+          ball.classList.add('draggable');
+          ball.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', columnIndex.toString());
+            ball.classList.add('dragging');
+            // Small delay to allow the drag image to be captured
+            setTimeout(() => ball.classList.add('drag-hidden'), 0);
+          });
+          ball.addEventListener('dragend', () => {
+            ball.classList.remove('dragging', 'drag-hidden');
+            // Remove drag-over from all columns
+            document.querySelectorAll('.column').forEach(col => col.classList.remove('drag-over'));
+          });
+        }
+        
         ballDiv.appendChild(ball);
       }
       
