@@ -26,12 +26,14 @@ const leaderboard = [];
 // Track high scores for each session (sessionId -> highScore)
 const highScores = new Map();
 
-// Session timeout (24 hours) - clean up old sessions periodically
-const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+// Constants
+const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours
 const SESSION_ID_PATTERN = /^[a-z0-9]{10,50}$/;
 const MAX_MESSAGE_SIZE = 1024; // 1KB max message size
 const RATE_LIMIT_WINDOW = 1000; // 1 second
 const RATE_LIMIT_MAX = 20; // max messages per window
+const SCORING_MULTIPLIER = 10000;
+const SCORING_MOVE_PENALTY = 0.25;
 
 setInterval(() => {
   const now = Date.now();
@@ -42,6 +44,137 @@ setInterval(() => {
     }
   }
 }, 60 * 60 * 1000); // Check every hour
+
+/**
+ * Sanitizes player name to prevent XSS attacks
+ * @param {string} name - The raw player name
+ * @returns {string} Sanitized player name, limited to 20 characters
+ */
+function sanitizePlayerName(name) {
+  if (typeof name !== 'string') return 'Anonymous';
+  // Remove HTML tags and limit length
+  return name.replace(/<[^>]*>/g, '').trim().substring(0, 20) || 'Anonymous';
+}
+
+// Handle move message
+/**
+ * Handles a move message from the client
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {GameState} game - The current game state
+ * @param {string} sessionId - The session ID
+ * @param {Object} msg - The message object
+ */
+function handleMove(ws, game, sessionId, msg) {
+  try {
+    const { fromColumn, toColumn } = msg.data;
+    if (typeof fromColumn !== 'number' || typeof toColumn !== 'number' ||
+        fromColumn < 0 || fromColumn >= game.columns.length ||
+        toColumn < 0 || toColumn >= game.columns.length) {
+      console.log(`Invalid move parameters: from=${fromColumn}, to=${toColumn}`);
+      return;
+    }
+    
+    const success = game.moveBall(fromColumn, toColumn);
+    console.log(`Move executed: ${success ? 'success' : 'failed'} (session: ${sessionId})`);
+    
+    ws.send(JSON.stringify({
+      type: 'gameState',
+      data: game.toJSON()
+    }));
+  } catch (error) {
+    console.error(`Error processing move for session ${sessionId}:`, error);
+  }
+}
+
+// Handle next level message
+/**
+ * Handles advancing to the next level
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {GameState} game - The current game state
+ * @param {string} sessionId - The session ID
+ */
+function handleNextLevel(ws, game, sessionId) {
+  try {
+    game.level++;
+    game.generateLevel(game.level);
+    console.log(`Advanced to level ${game.level} (session: ${sessionId})`);
+    
+    ws.send(JSON.stringify({
+      type: 'gameState',
+      data: game.toJSON()
+    }));
+  } catch (error) {
+    console.error(`Error generating level ${game.level} for session ${sessionId}:`, error);
+  }
+}
+
+// Handle get state message
+/**
+ * Handles a request for the current game state
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {GameState} game - The current game state
+ */
+function handleGetState(ws, game) {
+  try {
+    ws.send(JSON.stringify({
+      type: 'gameState',
+      data: game.toJSON()
+    }));
+  } catch (error) {
+    console.error('Error sending game state:', error);
+  }
+}
+
+// Handle update name message
+/**
+ * Handles player name updates
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {GameState} game - The current game state
+ * @param {Object} gameData - The game data object
+ * @param {string} sessionId - The session ID
+ * @param {Object} msg - The message object
+ */
+function handleUpdateName(ws, game, gameData, sessionId, msg) {
+  try {
+    const newName = sanitizePlayerName(msg.data?.name || '');
+    gameData.playerName = newName;
+    console.log(`Player ${sessionId} updated name to: ${newName}`);
+    // Update leaderboard if player has a score
+    if (game.totalScore > 0) {
+      updateLeaderboard(sessionId, game.totalScore, game.level, newName);
+    }
+  } catch (error) {
+    console.error(`Error updating name for session ${sessionId}:`, error);
+  }
+}
+
+// Handle select column message
+/**
+ * Handles column selection for drag operations
+ * @param {WebSocket} ws - The WebSocket connection
+ * @param {GameState} game - The current game state
+ * @param {string} sessionId - The session ID
+ * @param {Object} msg - The message object
+ */
+function handleSelectColumn(ws, game, sessionId, msg) {
+  try {
+    const colIndex = msg.data?.column;
+    if (colIndex !== null && (typeof colIndex !== 'number' || 
+        colIndex < 0 || colIndex >= game.columns.length)) {
+      console.log(`Invalid column index: ${colIndex} (session: ${sessionId})`);
+      return; // Invalid column index
+    }
+    game.selectedColumn = colIndex;
+    console.log(`Column selected: ${colIndex} (session: ${sessionId})`);
+    
+    ws.send(JSON.stringify({
+      type: 'gameState',
+      data: game.toJSON()
+    }));
+  } catch (error) {
+    console.error(`Error selecting column for session ${sessionId}:`, error);
+  }
+}
 
 // Update leaderboard with new high score (only if higher than previous)
 function updateLeaderboard(sessionId, score, level, name) {
@@ -65,7 +198,7 @@ function updateLeaderboard(sessionId, score, level, name) {
     sessionId,
     score,
     level,
-    name: name || 'Anonymous',
+    name: sanitizePlayerName(name),
     timestamp: Date.now()
   });
   
@@ -149,7 +282,7 @@ wss.on('connection', (ws) => {
           console.log(`Creating new game for session: ${sessionId}`);
           gameData = {
             game: new GameState(1),
-            playerName: playerName,
+            playerName: sanitizePlayerName(playerName),
             lastActivity: Date.now()
           };
           games.set(sessionId, gameData);
@@ -157,7 +290,7 @@ wss.on('connection', (ws) => {
           console.log(`Restoring game for session: ${sessionId}`);
           // Update player name if provided
           if (playerName) {
-            gameData.playerName = playerName;
+            gameData.playerName = sanitizePlayerName(playerName);
           }
           gameData.lastActivity = Date.now();
         }
@@ -184,20 +317,14 @@ wss.on('connection', (ws) => {
       
       switch (msg.type) {
         case 'move':
-          const { fromColumn, toColumn } = msg.data;
-          const success = game.moveBall(fromColumn, toColumn);
-          
-          ws.send(JSON.stringify({
-            type: 'gameState',
-            data: game.toJSON()
-          }));
+          handleMove(ws, game, sessionId, msg);
           
           if (game.isComplete) {
             // Calculate level score
             const gridSize = game.level + 3;
             const numColors = gridSize - 1;
             const totalTokens = numColors * gridSize;
-            const levelScore = Math.round((totalTokens * 10000) / (game.moves * .25 * Math.max(game.getElapsedTime(), 1)));
+            const levelScore = Math.round((totalTokens * SCORING_MULTIPLIER) / (game.moves * SCORING_MOVE_PENALTY * Math.max(game.getElapsedTime(), 1)));
             
             // Add to total score
             game.totalScore += levelScore;
@@ -229,13 +356,7 @@ wss.on('connection', (ws) => {
           break;
           
         case 'updateName':
-          const newName = msg.data?.name || '';
-          gameData.playerName = newName;
-          console.log(`Player ${sessionId} updated name to: ${newName || 'Anonymous'}`);
-          // Update leaderboard if player has a score
-          if (game.totalScore > 0) {
-            updateLeaderboard(sessionId, game.totalScore, game.level, newName);
-          }
+          handleUpdateName(ws, game, gameData, sessionId, msg);
           break;
           
         case 'restart':
@@ -248,12 +369,7 @@ wss.on('connection', (ws) => {
           break;
           
         case 'nextLevel':
-          game.level++;
-          game.generateLevel(game.level);
-          ws.send(JSON.stringify({
-            type: 'gameState',
-            data: game.toJSON()
-          }));
+          handleNextLevel(ws, game, sessionId);
           break;
           
         case 'getState':
@@ -264,16 +380,23 @@ wss.on('connection', (ws) => {
           break;
           
         case 'selectColumn':
-          const colIndex = msg.data?.column;
-          if (colIndex !== null && (typeof colIndex !== 'number' || 
-              colIndex < 0 || colIndex >= game.columns.length)) {
-            return; // Invalid column index
+          try {
+            const colIndex = msg.data?.column;
+            if (colIndex !== null && (typeof colIndex !== 'number' || 
+                colIndex < 0 || colIndex >= game.columns.length)) {
+              console.log(`Invalid column index: ${colIndex} (session: ${sessionId})`);
+              return; // Invalid column index
+            }
+            game.selectedColumn = colIndex;
+            console.log(`Column selected: ${colIndex} (session: ${sessionId})`);
+            
+            ws.send(JSON.stringify({
+              type: 'gameState',
+              data: game.toJSON()
+            }));
+          } catch (error) {
+            console.error(`Error selecting column for session ${sessionId}:`, error);
           }
-          game.selectedColumn = colIndex;
-          ws.send(JSON.stringify({
-            type: 'gameState',
-            data: game.toJSON()
-          }));
           break;
       }
     } catch (error) {

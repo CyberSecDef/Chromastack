@@ -12,6 +12,34 @@ let countdownInterval = null;
 let touchDragState = null;
 let touchDragClone = null;
 
+// Cleanup function to prevent memory leaks
+function cleanup() {
+  // Clear intervals
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+  
+  // Close WebSocket connection
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+  
+  // Remove touch drag clone if it exists
+  if (touchDragClone) {
+    touchDragClone.remove();
+    touchDragClone = null;
+  }
+  
+  // Reset drag state
+  touchDragState = null;
+}
+
 // Get or create session ID
 function getSessionId() {
   let id = localStorage.getItem('chromastack_session');
@@ -42,22 +70,29 @@ function initWebSocket() {
   };
   
   ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-    
-    switch (msg.type) {
-      case 'gameState':
-        gameState = msg.data;
-        selectedColumn = gameState.selectedColumn;
-        renderGame();
-        break;
-        
-      case 'levelComplete':
-        showLevelComplete(msg.data);
-        break;
-        
-      case 'leaderboard':
-        renderLeaderboard(msg.data);
-        break;
+    try {
+      const msg = JSON.parse(event.data);
+      
+      switch (msg.type) {
+        case 'gameState':
+          gameState = msg.data;
+          selectedColumn = gameState.selectedColumn;
+          renderGame();
+          break;
+          
+        case 'levelComplete':
+          showLevelComplete(msg.data);
+          break;
+          
+        case 'leaderboard':
+          renderLeaderboard(msg.data);
+          break;
+          
+        default:
+          console.warn('Unknown message type:', msg.type);
+      }
+    } catch (error) {
+      console.error('Error processing WebSocket message:', error);
     }
   };
   
@@ -89,8 +124,14 @@ function sendMessage(type, data) {
 function renderGame() {
   if (!gameState) return;
   
-  const gameBoard = document.getElementById('gameBoard');
-  gameBoard.innerHTML = '';
+  try {
+    const gameBoard = document.getElementById('gameBoard');
+    
+    // Clean up existing event listeners by removing all child elements
+    // This prevents memory leaks from accumulating event listeners
+    while (gameBoard.firstChild) {
+      gameBoard.removeChild(gameBoard.firstChild);
+    }
   
   // Update status bar
   document.getElementById('level').textContent = gameState.level;
@@ -252,6 +293,9 @@ function renderGame() {
     
     gameBoard.appendChild(columnDiv);
   });
+  } catch (error) {
+    console.error('Error rendering game:', error);
+  }
 }
 
 // Handle column click
@@ -499,4 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Start timer
   startTimer();
+  
+  // Add cleanup on page unload
+  window.addEventListener('beforeunload', cleanup);
 });
