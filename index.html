@@ -11,43 +11,49 @@
   <!-- Sticky Status Bar -->
   <div class="status-bar">
     <div class="status-item">
-      <span class="status-label">Level:</span>
-      <span class="status-value" id="level">1</span>
+      <span class="status-large">Chromastack</span>
     </div>
-    <div class="status-item">
-      <span class="status-label">Moves:</span>
-      <span class="status-value" id="moves">0</span>
+    <div class="status-metrics">
+      <div class="status-item">
+        <span class="status-label">Level:</span>
+        <span class="status-value" id="level">1</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Moves:</span>
+        <span class="status-value" id="moves">0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Time:</span>
+        <span class="status-value" id="timer">00:00</span>
+      </div>
     </div>
+    
     <div class="status-item">
-      <span class="status-label">Time:</span>
-      <span class="status-value" id="timer">00:00</span>
+      <span class="status-label">Total Score:</span>
+      <span class="status-value" id="score">0</span>
     </div>
     <div class="status-controls">
-      <button id="restartBtn" class="btn">🔄 Restart</button>
-      <button id="themeToggle" class="btn">🌓 Theme</button>
+      <input type="text" id="playerName" class="status-input" placeholder="Enter name" maxlength="20">
+      <button id="restartBtn" class="btn">🔄 </button>
+      <button id="themeToggle" class="btn">🌓</button>
+      <button id="helpBtn" class="btn">❓ </button>
     </div>
   </div>
 
   <!-- Game Container -->
   <div class="game-container">
-    <div class="game-header">
-      <h1>Chromastack</h1>
-      <p class="game-description">Sort all tokens into single-color columns!</p>
-    </div>
-    
     <div id="gameBoard" class="game-board">
       <!-- Columns will be rendered here by JavaScript -->
     </div>
     
-    <div class="game-instructions">
-      <h3>How to Play:</h3>
-      <ul>
-        <li>Click a column to select it</li>
-        <li>Click another column to move the top ball</li>
-        <li>You can only move a ball to a column with free space</li>
-        <li>Goal: Sort all tokens so each column contains only one color</li>
-      </ul>
+    <!-- Leaderboard -->
+    <div class="leaderboard">
+      <h3>🏆 Leaderboard</h3>
+      <div id="leaderboardList" class="leaderboard-list">
+        <!-- Leaderboard entries will be rendered here -->
+      </div>
     </div>
+    
   </div>
 
   <!-- Level Complete Modal -->
@@ -59,8 +65,26 @@
         <p>Level: <span id="modalLevel">1</span></p>
         <p>Moves: <span id="modalMoves">0</span></p>
         <p>Time: <span id="modalTime">00:00</span></p>
+        <p>Level Score: <span id="modalScore">0</span></p>
       </div>
       <p class="modal-next">Next level starting in <span id="modalCountdown">10</span> seconds...</p>
+    </div>
+  </div>
+
+  <!-- Instructions Modal -->
+  <div id="instructionsModal" class="modal-overlay">
+    <div class="modal-content instructions-modal">
+      <h2>❓ How to Play</h2>
+      <div class="instructions-content">
+        <ul>
+          <li><strong>Click Method:</strong> Click a column to select it, then click another column to move the top token</li>
+          <li><strong>Drag & Drop:</strong> Drag the top token from one column and drop it on another column</li>
+          <li><strong>Rules:</strong> You can only move a token to an empty column or a column with available space</li>
+          <li><strong>Goal:</strong> Sort all tokens so each column contains only one type of emoji</li>
+          <li><strong>Levels:</strong> Complete each level to unlock larger grids (4×4, 5×5, 6×6, etc.)</li>
+        </ul>
+      </div>
+      <button id="closeInstructionsBtn" class="btn close-modal-btn">Got it!</button>
     </div>
   </div>
 

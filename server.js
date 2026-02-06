@@ -20,6 +20,12 @@ app.use(express.static(path.join(__dirname)));
 // Store game states by session ID (persists across disconnects)
 const games = new Map();
 
+// Global leaderboard - top 5 high scores across all sessions
+const leaderboard = [];
+
+// Track high scores for each session (sessionId -> highScore)
+const highScores = new Map();
+
 // Session timeout (24 hours) - clean up old sessions periodically
 const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
 const SESSION_ID_PATTERN = /^[a-z0-9]{10,50}$/;
@@ -36,6 +42,59 @@ setInterval(() => {
     }
   }
 }, 60 * 60 * 1000); // Check every hour
+
+// Update leaderboard with new high score (only if higher than previous)
+function updateLeaderboard(sessionId, score, level, name) {
+  // Check if this is a new high score for this session
+  const currentHighScore = highScores.get(sessionId) || 0;
+  if (score <= currentHighScore) {
+    return; // Don't update if not a new high score
+  }
+  
+  // Update high score for this session
+  highScores.set(sessionId, score);
+  
+  // Remove existing entry for this session
+  const existingIndex = leaderboard.findIndex(entry => entry.sessionId === sessionId);
+  if (existingIndex !== -1) {
+    leaderboard.splice(existingIndex, 1);
+  }
+  
+  // Add new entry
+  leaderboard.push({
+    sessionId,
+    score,
+    level,
+    name: name || 'Anonymous',
+    timestamp: Date.now()
+  });
+  
+  // Sort by score descending and keep top 5
+  leaderboard.sort((a, b) => b.score - a.score);
+  leaderboard.splice(5);
+  
+  // Broadcast updated leaderboard to all connected clients
+  broadcastLeaderboard();
+}
+
+// Broadcast leaderboard to all connected clients
+function broadcastLeaderboard() {
+  const leaderboardData = leaderboard.map(entry => ({
+    sessionId: entry.sessionId,
+    score: entry.score,
+    level: entry.level,
+    name: entry.name || 'Anonymous'
+  }));
+  
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: 'leaderboard',
+        data: leaderboardData
+      }));
+    }
+  });
+}
 
 // WebSocket connection handler
 wss.on('connection', (ws) => {
@@ -71,6 +130,7 @@ wss.on('connection', (ws) => {
       // Handle join message to establish session
       if (msg.type === 'join') {
         const requestedSessionId = msg.data?.sessionId;
+        const playerName = msg.data?.name || '';
         
         // Validate session ID format
         if (!requestedSessionId || typeof requestedSessionId !== 'string' || 
@@ -81,7 +141,7 @@ wss.on('connection', (ws) => {
         }
         
         sessionId = requestedSessionId;
-        console.log(`Client joining with session: ${sessionId}`);
+        console.log(`Client joining with session: ${sessionId}, name: ${playerName || 'Anonymous'}`);
         
         // Check if session exists, otherwise create new game
         let gameData = games.get(sessionId);
@@ -89,11 +149,16 @@ wss.on('connection', (ws) => {
           console.log(`Creating new game for session: ${sessionId}`);
           gameData = {
             game: new GameState(1),
+            playerName: playerName,
             lastActivity: Date.now()
           };
           games.set(sessionId, gameData);
         } else {
           console.log(`Restoring game for session: ${sessionId}`);
+          // Update player name if provided
+          if (playerName) {
+            gameData.playerName = playerName;
+          }
           gameData.lastActivity = Date.now();
         }
         
@@ -102,6 +167,9 @@ wss.on('connection', (ws) => {
           type: 'gameState',
           data: gameData.game.toJSON()
         }));
+        
+        // Send current leaderboard
+        broadcastLeaderboard();
         return;
       }
       
@@ -125,14 +193,48 @@ wss.on('connection', (ws) => {
           }));
           
           if (game.isComplete) {
+            // Calculate level score
+            const gridSize = game.level + 3;
+            const numColors = gridSize - 1;
+            const totalTokens = numColors * gridSize;
+            const levelScore = Math.round((totalTokens * 10000) / (game.moves * .25 * Math.max(game.getElapsedTime(), 1)));
+            
+            // Add to total score
+            game.totalScore += levelScore;
+            
+            // Update leaderboard
+            const playerName = gameData.playerName || 'Anonymous';
+            updateLeaderboard(sessionId, game.totalScore, game.level, playerName);
+            
             ws.send(JSON.stringify({
               type: 'levelComplete',
               data: {
                 level: game.level,
                 moves: game.moves,
-                time: game.getElapsedTime()
+                time: game.getElapsedTime(),
+                levelScore: levelScore,
+                totalScore: game.totalScore,
+                gameReset: game.level >= 10 // Indicate if game is resetting
               }
             }));
+            
+            // Reset game after level 10
+            if (game.level >= 10) {
+              console.log(`Player ${sessionId} completed level 10, resetting game`);
+              game.level = 1;
+              game.totalScore = 0;
+              game.generateLevel(1);
+            }
+          }
+          break;
+          
+        case 'updateName':
+          const newName = msg.data?.name || '';
+          gameData.playerName = newName;
+          console.log(`Player ${sessionId} updated name to: ${newName || 'Anonymous'}`);
+          // Update leaderboard if player has a score
+          if (game.totalScore > 0) {
+            updateLeaderboard(sessionId, game.totalScore, game.level, newName);
           }
           break;
           
@@ -148,6 +250,13 @@ wss.on('connection', (ws) => {
         case 'nextLevel':
           game.level++;
           game.generateLevel(game.level);
+          ws.send(JSON.stringify({
+            type: 'gameState',
+            data: game.toJSON()
+          }));
+          break;
+          
+        case 'getState':
           ws.send(JSON.stringify({
             type: 'gameState',
             data: game.toJSON()

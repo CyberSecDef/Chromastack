@@ -11,6 +11,7 @@ class GameState {
     this.elapsedTime = 0;
     this.isComplete = false;
     this.stackHeight = 4;
+    this.totalScore = 0;
     this.generateLevel(level);
   }
 
@@ -142,7 +143,8 @@ class GameState {
       selectedColumn: this.selectedColumn,
       elapsedTime: this.getElapsedTime(),
       isComplete: this.isComplete,
-      stackHeight: this.stackHeight
+      stackHeight: this.stackHeight,
+      totalScore: this.totalScore
     };
   }
 
@@ -155,6 +157,7 @@ class GameState {
     game.selectedColumn = data.selectedColumn;
     game.isComplete = data.isComplete;
     game.stackHeight = data.stackHeight;
+    game.totalScore = data.totalScore || 0;
     game.startTime = Date.now() - (data.elapsedTime * 1000);
     return game;
   }

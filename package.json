@@ -1,13 +1,13 @@
 {
   "name": "chromastack",
   "version": "1.0.0",
-  "description": "Color ball sorting puzzle game",
+  "description": "Real-time emoji token sorting puzzle game with leaderboards",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"
   },
-  "keywords": ["game", "puzzle", "websocket", "ball-sorting"],
+  "keywords": ["game", "puzzle", "websocket", "emoji", "sorting", "leaderboard", "real-time"],
   "author": "",
   "license": "MIT",
   "dependencies": {

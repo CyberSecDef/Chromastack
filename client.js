@@ -32,8 +32,13 @@ function initWebSocket() {
   
   ws.onopen = () => {
     console.log('Connected to server');
-    // Send session ID to server to restore or create game
-    sendMessage('join', { sessionId: sessionId });
+    // Send queued messages first
+    while (messageQueue.length > 0) {
+      ws.send(messageQueue.shift());
+    }
+    // Send session ID and player name to server to restore or create game
+    const playerName = localStorage.getItem('playerName') || '';
+    sendMessage('join', { sessionId: sessionId, name: playerName });
   };
   
   ws.onmessage = (event) => {
@@ -49,6 +54,10 @@ function initWebSocket() {
       case 'levelComplete':
         showLevelComplete(msg.data);
         break;
+        
+      case 'leaderboard':
+        renderLeaderboard(msg.data);
+        break;
     }
   };
   
@@ -62,10 +71,17 @@ function initWebSocket() {
   };
 }
 
+// Message queue for when WebSocket is not ready
+let messageQueue = [];
+
 // Send message to server
 function sendMessage(type, data) {
+  const message = JSON.stringify({ type, data });
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type, data }));
+    ws.send(message);
+  } else {
+    // Queue the message to send when connected
+    messageQueue.push(message);
   }
 }
 
@@ -80,6 +96,7 @@ function renderGame() {
   document.getElementById('level').textContent = gameState.level;
   document.getElementById('moves').textContent = gameState.moves;
   document.getElementById('timer').textContent = formatTime(gameState.elapsedTime);
+  document.getElementById('score').textContent = gameState.totalScore.toLocaleString();
   
   // Use the fixed stack height from game state
   const stackHeight = gameState.stackHeight || 4;
@@ -270,16 +287,57 @@ function showLevelComplete(data) {
   const modal = document.getElementById('levelCompleteModal');
   const confettiContainer = document.getElementById('confettiContainer');
   
+  if (!modal) {
+    console.error('Modal not found');
+    return;
+  }
+  
+  // Update score display with total score
+  const scoreEl = document.getElementById('score');
+  if (scoreEl) {
+    scoreEl.textContent = data.totalScore.toLocaleString();
+  }
+  
   // Set modal content
-  document.getElementById('modalLevel').textContent = data.level;
-  document.getElementById('modalMoves').textContent = data.moves;
-  document.getElementById('modalTime').textContent = formatTime(data.time);
+  const modalLevelEl = document.getElementById('modalLevel');
+  if (modalLevelEl) modalLevelEl.textContent = data.level;
+  
+  const modalMovesEl = document.getElementById('modalMoves');
+  if (modalMovesEl) modalMovesEl.textContent = data.moves;
+  
+  const modalTimeEl = document.getElementById('modalTime');
+  if (modalTimeEl) modalTimeEl.textContent = formatTime(data.time);
+  
+  const modalScoreEl = document.getElementById('modalScore');
+  if (modalScoreEl) modalScoreEl.textContent = data.levelScore.toLocaleString();
+  
+  // Update modal title and message based on game reset
+  const modalTitle = modal.querySelector('h2');
+  const modalNext = modal.querySelector('.modal-next');
+  
+  if (modalTitle) {
+    if (data.gameReset) {
+      modalTitle.textContent = '🎉 Game Complete! 🎉';
+    } else {
+      modalTitle.textContent = '🎉 Level Complete! 🎉';
+    }
+  }
+  
+  if (modalNext) {
+    if (data.gameReset) {
+      modalNext.innerHTML = 'Next game starting in <span id="modalCountdown">10</span> seconds...';
+    } else {
+      modalNext.innerHTML = 'Next level starting in <span id="modalCountdown">10</span> seconds...';
+    }
+  }
   
   // Show modal
   modal.classList.add('active');
   
   // Create confetti
-  createConfetti(confettiContainer);
+  if (confettiContainer) {
+    createConfetti(confettiContainer);
+  }
   
   // Clear any existing countdown
   if (countdownInterval) {
@@ -289,22 +347,31 @@ function showLevelComplete(data) {
   // Countdown timer
   let countdown = 10;
   const countdownEl = document.getElementById('modalCountdown');
-  countdownEl.textContent = countdown;
-  
-  countdownInterval = setInterval(() => {
-    countdown--;
+  if (countdownEl) {
     countdownEl.textContent = countdown;
-    if (countdown <= 0) {
-      clearInterval(countdownInterval);
-      countdownInterval = null;
-    }
-  }, 1000);
+    
+    countdownInterval = setInterval(() => {
+      countdown--;
+      countdownEl.textContent = countdown;
+      if (countdown <= 0) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+    }, 1000);
+  }
   
-  // Go to next level after 10 seconds
+  // Go to next level after 10 seconds (or restart game if completed)
   setTimeout(() => {
     modal.classList.remove('active');
-    confettiContainer.innerHTML = '';
-    sendMessage('nextLevel', {});
+    if (confettiContainer) {
+      confettiContainer.innerHTML = '';
+    }
+    if (data.gameReset) {
+      // Game was reset, just refresh the current state
+      sendMessage('getState', {});
+    } else {
+      sendMessage('nextLevel', {});
+    }
   }, 10000);
 }
 
@@ -361,15 +428,71 @@ function startTimer() {
   }, 1000);
 }
 
+// Render leaderboard
+function renderLeaderboard(leaderboard) {
+  const leaderboardList = document.getElementById('leaderboardList');
+  leaderboardList.innerHTML = '';
+  
+  leaderboard.forEach((entry, index) => {
+    const entryDiv = document.createElement('div');
+    entryDiv.className = 'leaderboard-entry';
+    
+    if (entry.sessionId === sessionId) {
+      entryDiv.classList.add('current-player');
+    }
+    
+    entryDiv.innerHTML = `
+      <span class="rank">${index + 1}</span>
+      <span class="name">${entry.name || 'Anonymous'}</span>
+      <span class="score">${entry.score.toLocaleString()}</span>
+    `;
+    
+    leaderboardList.appendChild(entryDiv);
+  });
+}
+
 // Initialize game
 document.addEventListener('DOMContentLoaded', () => {
   // Load saved theme
   const savedTheme = localStorage.getItem('theme') || 'dark';
   document.body.dataset.theme = savedTheme;
   
+  // Initialize player name
+  const playerNameInput = document.getElementById('playerName');
+  const savedName = localStorage.getItem('playerName') || '';
+  playerNameInput.value = savedName;
+  
+  // Save name on input change
+  playerNameInput.addEventListener('input', () => {
+    const newName = playerNameInput.value.trim();
+    localStorage.setItem('playerName', newName);
+    // Send name update to server
+    sendMessage('updateName', { name: newName });
+  });
+  
   // Set up event listeners
   document.getElementById('restartBtn').addEventListener('click', restartLevel);
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+  
+  // Help button modal
+  const helpBtn = document.getElementById('helpBtn');
+  const instructionsModal = document.getElementById('instructionsModal');
+  const closeInstructionsBtn = document.getElementById('closeInstructionsBtn');
+  
+  helpBtn.addEventListener('click', () => {
+    instructionsModal.classList.add('active');
+  });
+  
+  closeInstructionsBtn.addEventListener('click', () => {
+    instructionsModal.classList.remove('active');
+  });
+  
+  // Close modal when clicking outside
+  instructionsModal.addEventListener('click', (e) => {
+    if (e.target === instructionsModal) {
+      instructionsModal.classList.remove('active');
+    }
+  });
   
   // Initialize WebSocket
   initWebSocket();

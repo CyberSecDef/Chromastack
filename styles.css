@@ -36,6 +36,7 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   transition: background 0.3s ease, color 0.3s ease;
+  overflow:hidden;
 }
 
 /* Sticky Status Bar */
@@ -60,6 +61,18 @@ body {
   gap: 8px;
 }
 
+.status-metrics {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-shrink: 0;
+}
+
+.status-large {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
 .status-label {
   font-weight: 600;
   color: var(--text-secondary);
@@ -70,7 +83,26 @@ body {
   font-weight: 700;
   font-size: 18px;
   color: var(--text-primary);
-  min-width: 50px;
+  min-width: 60px;
+}
+
+.status-input {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  min-width: 120px;
+  max-width: 150px;
+  transition: border-color 0.3s ease;
+}
+
+.status-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
 }
 
 .status-controls {
@@ -282,13 +314,40 @@ body {
 
 @media (max-width: 480px) {
   .status-bar {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  
+  .status-metrics {
+    flex-basis: 100%;
+    justify-content: center;
+    margin: 5px 0;
   }
   
   .status-controls {
-    margin-left: 0;
+    flex-basis: 100%;
     justify-content: center;
+    margin-left: 0;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  
+  .status-item {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+  }
+  
+  .status-large {
+    flex: 0 0 auto;
+    font-size: 18px;
+  }
+  
+  .status-input {
+    min-width: 100px;
+    max-width: 120px;
+    font-size: 14px;
   }
   
   .game-header h1 {
@@ -422,3 +481,114 @@ body {
     opacity: 0;
   }
 }
+
+/* Instructions Modal */
+.instructions-modal {
+  max-width: 600px;
+  text-align: left;
+}
+
+.instructions-modal h2 {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.instructions-content {
+  margin-bottom: 30px;
+}
+
+.instructions-content ul {
+  list-style: none;
+  padding: 0;
+}
+
+.instructions-content li {
+  margin-bottom: 15px;
+  padding-left: 20px;
+  position: relative;
+  line-height: 1.6;
+}
+
+.instructions-content li::before {
+  content: "•";
+  color: gold;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+.close-modal-btn {
+  display: block;
+  margin: 0 auto;
+  background: gold;
+  color: #1a1a2e;
+  border: 2px solid gold;
+  font-weight: bold;
+}
+
+.close-modal-btn:hover {
+  background: #ffd700;
+  transform: translateY(-2px);
+}
+
+/* Leaderboard */
+.leaderboard {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px var(--shadow);
+  padding: 20px;
+  margin-top: 20px;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.leaderboard h3 {
+  text-align: center;
+  font-size: 24px;
+  margin-bottom: 15px;
+  color: var(--text-primary);
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboard-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  font-size: 16px;
+}
+
+.leaderboard-entry.current-player {
+  border-color: gold;
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.leaderboard-entry .rank {
+  font-weight: bold;
+  color: gold;
+  min-width: 30px;
+}
+
+.leaderboard-entry .name {
+  flex: 1;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.leaderboard-entry .score {
+  font-weight: bold;
+  color: var(--text-secondary);
+  min-width: 80px;
+  text-align: right;
+}
+
+
