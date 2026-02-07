@@ -465,7 +465,7 @@ function startTimer() {
   }
   
   timerInterval = setInterval(() => {
-    if (gameState && !gameState.isComplete) {
+    if (gameState && !gameState.isComplete && !document.hidden) {
       gameState.elapsedTime++;
       document.getElementById('timer').textContent = formatTime(gameState.elapsedTime);
     }
@@ -541,7 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize WebSocket
   initWebSocket();
   
-  // Start timer
+  // Start timer (automatically pauses when page is hidden via document.hidden check)
   startTimer();
   
   // Add cleanup on page unload
