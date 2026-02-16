@@ -538,7 +538,7 @@ body {
   box-shadow: 0 4px 20px var(--shadow);
   padding: 20px;
   margin-top: 20px;
-  max-width: 400px;
+  max-width: 500px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -564,7 +564,7 @@ body {
   background: var(--bg-primary);
   border-radius: 8px;
   border: 1px solid var(--border-color);
-  font-size: 16px;
+  font-size: 13px;
 }
 
 .leaderboard-entry.current-player {
@@ -576,12 +576,16 @@ body {
   font-weight: bold;
   color: gold;
   min-width: 30px;
+  flex-shrink: 0;
 }
 
 .leaderboard-entry .name {
   flex: 1;
   text-align: center;
   color: var(--text-primary);
+  padding: 0 10px;
+  min-width: 0;
+  word-wrap: break-word;
 }
 
 .leaderboard-entry .score {
@@ -589,6 +593,7 @@ body {
   color: var(--text-secondary);
   min-width: 80px;
   text-align: right;
+  flex-shrink: 0;
 }
 
 

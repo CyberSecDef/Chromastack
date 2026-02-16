@@ -136,7 +136,7 @@ function getLocationFromIP(ip) {
 function sanitizePlayerName(name) {
   if (typeof name !== 'string') return 'Anonymous';
   // Remove HTML tags and limit length
-  return name.replace(/<[^>]*>/g, '').trim().substring(0, 20) || 'Anonymous';
+  return name.replace(/<[^>]*>/g, '').trim().substring(0, 32) || 'Anonymous';
 }
 
 /**
