@@ -5,6 +5,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const geoip = require('geoip-lite');
 const { GameState } = require('./shared.js');
 
 const app = express();
@@ -27,7 +28,7 @@ const leaderboard = [];
 const highScores = new Map();
 
 // Constants
-const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const SESSION_ID_PATTERN = /^[a-z0-9]{10,50}$/;
 const MAX_MESSAGE_SIZE = 1024; // 1KB max message size
 const RATE_LIMIT_WINDOW = 1000; // 1 second
@@ -35,15 +36,97 @@ const RATE_LIMIT_MAX = 20; // max messages per window
 const SCORING_MULTIPLIER = 10000;
 const SCORING_MOVE_PENALTY = 0.25;
 
+// Cleanup inactive players
 setInterval(() => {
   const now = Date.now();
+  let removedCount = 0;
+  let leaderboardChanged = false;
+  
   for (const [sessionId, gameData] of games.entries()) {
     if (now - gameData.lastActivity > SESSION_TIMEOUT) {
+      // Remove from games cache
       games.delete(sessionId);
-      console.log(`Session ${sessionId} expired and removed`);
+      
+      // Remove from high scores
+      highScores.delete(sessionId);
+      
+      // Remove from leaderboard
+      const leaderboardIndex = leaderboard.findIndex(entry => entry.sessionId === sessionId);
+      if (leaderboardIndex !== -1) {
+        leaderboard.splice(leaderboardIndex, 1);
+        leaderboardChanged = true;
+      }
+      
+      removedCount++;
+      console.log(`Session ${sessionId} expired and removed (inactive for 30+ minutes)`);
     }
   }
-}, 60 * 60 * 1000); // Check every hour
+  
+  // Broadcast updated leaderboard if any players were removed
+  if (removedCount > 0) {
+    console.log(`Removed ${removedCount} inactive player(s)`);
+    if (leaderboardChanged) {
+      broadcastLeaderboard();
+    }
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes
+
+/**
+ * Extract client IP address from WebSocket request
+ * @param {http.IncomingMessage} req - The HTTP request
+ * @returns {string} The client IP address
+ */
+function getClientIP(req) {
+  // Check for proxy headers first
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    const ips = forwarded.split(',').map(ip => ip.trim());
+    return ips[0];
+  }
+  
+  const realIP = req.headers['x-real-ip'];
+  if (realIP) {
+    return realIP;
+  }
+  
+  // Fall back to socket address
+  return req.socket.remoteAddress || '';
+}
+
+/**
+ * Get location information from IP address
+ * @param {string} ip - The IP address
+ * @returns {string} Formatted location string or empty string
+ */
+function getLocationFromIP(ip) {
+  // Clean up IPv6-mapped IPv4 addresses
+  const cleanIP = ip.replace(/^::ffff:/, '');
+  
+  // Skip localhost/private IPs
+  if (cleanIP === '127.0.0.1' || cleanIP === '::1' || cleanIP.startsWith('192.168.') || cleanIP.startsWith('10.')) {
+    return '';
+  }
+  
+  const geo = geoip.lookup(cleanIP);
+  if (!geo) {
+    return '';
+  }
+  
+  // Format: City, State for US, or City, Country for others
+  const parts = [];
+  
+  if (geo.city) {
+    parts.push(geo.city);
+  }
+  
+  if (geo.country === 'US' && geo.region) {
+    parts.push(geo.region);
+  } else if (geo.country) {
+    parts.push(geo.country);
+  }
+  
+  return parts.length > 0 ? parts.join(', ') : '';
+}
 
 /**
  * Sanitizes player name to prevent XSS attacks
@@ -54,6 +137,20 @@ function sanitizePlayerName(name) {
   if (typeof name !== 'string') return 'Anonymous';
   // Remove HTML tags and limit length
   return name.replace(/<[^>]*>/g, '').trim().substring(0, 20) || 'Anonymous';
+}
+
+/**
+ * Format player display name with location
+ * @param {string} name - The player name
+ * @param {string} location - The location string
+ * @returns {string} Formatted display name
+ */
+function formatDisplayName(name, location) {
+  const sanitized = sanitizePlayerName(name);
+  if (location) {
+    return `${sanitized} (${location})`;
+  }
+  return sanitized;
 }
 
 // Handle move message
@@ -138,10 +235,11 @@ function handleUpdateName(ws, game, gameData, sessionId, msg) {
   try {
     const newName = sanitizePlayerName(msg.data?.name || '');
     gameData.playerName = newName;
-    console.log(`Player ${sessionId} updated name to: ${newName}`);
+    gameData.displayName = formatDisplayName(newName, gameData.location || '');
+    console.log(`Player ${sessionId} updated name to: ${gameData.displayName}`);
     // Update leaderboard if player has a score
     if (game.totalScore > 0) {
-      updateLeaderboard(sessionId, game.totalScore, game.level, newName);
+      updateLeaderboard(sessionId, game.totalScore, game.level, gameData.displayName);
     }
   } catch (error) {
     console.error(`Error updating name for session ${sessionId}:`, error);
@@ -230,12 +328,17 @@ function broadcastLeaderboard() {
 }
 
 // WebSocket connection handler
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   console.log('Client connected');
   
   let sessionId = null;
   let messageCount = 0;
   let lastReset = Date.now();
+  
+  // Extract client IP and location
+  const clientIP = getClientIP(req);
+  const location = getLocationFromIP(clientIP);
+  console.log(`Client IP: ${clientIP}, Location: ${location || 'unknown'}`);
   
   // Handle messages from client
   ws.on('message', (message) => {
@@ -274,7 +377,8 @@ wss.on('connection', (ws) => {
         }
         
         sessionId = requestedSessionId;
-        console.log(`Client joining with session: ${sessionId}, name: ${playerName || 'Anonymous'}`);
+        const displayName = formatDisplayName(playerName, location);
+        console.log(`Client joining with session: ${sessionId}, name: ${displayName}`);
         
         // Check if session exists, otherwise create new game
         let gameData = games.get(sessionId);
@@ -283,14 +387,18 @@ wss.on('connection', (ws) => {
           gameData = {
             game: new GameState(1),
             playerName: sanitizePlayerName(playerName),
+            displayName: displayName,
+            location: location,
             lastActivity: Date.now()
           };
           games.set(sessionId, gameData);
         } else {
           console.log(`Restoring game for session: ${sessionId}`);
-          // Update player name if provided
+          // Update player name and location if provided
           if (playerName) {
             gameData.playerName = sanitizePlayerName(playerName);
+            gameData.displayName = formatDisplayName(playerName, location);
+            gameData.location = location;
           }
           gameData.lastActivity = Date.now();
         }
@@ -330,8 +438,8 @@ wss.on('connection', (ws) => {
             game.totalScore += levelScore;
             
             // Update leaderboard
-            const playerName = gameData.playerName || 'Anonymous';
-            updateLeaderboard(sessionId, game.totalScore, game.level, playerName);
+            const displayName = gameData.displayName || gameData.playerName || 'Anonymous';
+            updateLeaderboard(sessionId, game.totalScore, game.level, displayName);
             
             ws.send(JSON.stringify({
               type: 'levelComplete',

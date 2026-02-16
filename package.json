@@ -7,11 +7,20 @@
     "start": "node server.js",
     "dev": "node server.js"
   },
-  "keywords": ["game", "puzzle", "websocket", "emoji", "sorting", "leaderboard", "real-time"],
+  "keywords": [
+    "game",
+    "puzzle",
+    "websocket",
+    "emoji",
+    "sorting",
+    "leaderboard",
+    "real-time"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
+    "geoip-lite": "^1.4.10",
     "ws": "^8.14.2"
   }
 }
